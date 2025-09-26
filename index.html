@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulador de Gestión de Memoria y Procesos</title>
-    <link rel="stylesheet" href="public/css/styles.css">
+    <link rel="stylesheet" href="public/css/styles.css?v=1.0">
     <link rel="shortcut icon" href="public/icon/favicon.ico" type="image/x-icon">
 </head>
 
@@ -262,7 +262,14 @@
             <div class="panel__contenido">
                 <div class="registro__controles">
                     <button class="boton boton--pequeno" id="limpiarRegistro">Limpiar Registro</button>
-                    <button class="boton boton--pequeno" id="exportarRegistro">Exportar Log</button>
+                    <div class="registro__filtros">
+                        <label class="registro__etiqueta">Desde:</label>
+                        <input type="time" class="registro__tiempo-input" id="filtroDesde" step="1">
+                        <label class="registro__etiqueta">Hasta:</label>
+                        <input type="time" class="registro__tiempo-input" id="filtroHasta" step="1">
+                        <button class="boton boton--pequeno" id="exportarRango">Exportar Rango</button>
+                    </div>
+                    <button class="boton boton--pequeno" id="exportarRegistro">Exportar Todo</button>
                 </div>
                 <div class="registro__contenido" id="contenidoRegistro">
                     <div class="registro__entrada">
@@ -283,94 +290,13 @@
 
     </div>
 
-    <script>
-        class GestorTema {
-            constructor() {
-                this.temaActual = localStorage.getItem('tema') || 'claro';
-                this.botonTema = document.getElementById('botonTema');
-                this.iconoTema = this.botonTema?.querySelector('.boton-tema__icono');
-                this.textoTema = this.botonTema?.querySelector('.boton-tema__texto');
-
-                this.inicializar();
-            }
-
-            inicializar() {
-                this.aplicarTema(this.temaActual);
-                this.configurarEventos();
-            }
-
-            configurarEventos() {
-                if (this.botonTema) {
-                    this.botonTema.addEventListener('click', () => this.alternarTema());
-                }
-
-                if (window.matchMedia) {
-                    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-                    mediaQuery.addEventListener('change', (e) => {
-                        if (!localStorage.getItem('tema')) {
-                            this.aplicarTema(e.matches ? 'oscuro' : 'claro');
-                        }
-                    });
-                }
-            }
-
-            alternarTema() {
-                const nuevoTema = this.temaActual === 'claro' ? 'oscuro' : 'claro';
-                this.aplicarTema(nuevoTema);
-                this.guardarPreferencia(nuevoTema);
-            }
-
-            aplicarTema(tema) {
-                this.temaActual = tema;
-                document.body.setAttribute('data-tema', tema);
-                this.actualizarInterfaz();
-                this.dispatchEventoTemaCambiado();
-            }
-
-            actualizarInterfaz() {
-                if (this.iconoTema && this.textoTema) {
-                    if (this.temaActual === 'oscuro') {
-                        this.iconoTema.textContent = '☀️';
-                        this.textoTema.textContent = 'Modo Claro';
-                    } else {
-                        this.iconoTema.textContent = '🌙';
-                        this.textoTema.textContent = 'Modo Oscuro';
-                    }
-                }
-            }
-
-            guardarPreferencia(tema) {
-                localStorage.setItem('tema', tema);
-            }
-
-            dispatchEventoTemaCambiado() {
-                const evento = new CustomEvent('temaCambiado', {
-                    detail: { tema: this.temaActual }
-                });
-                document.dispatchEvent(evento);
-            }
-
-            obtenerTemaActual() {
-                return this.temaActual;
-            }
-
-            suscribir(callback) {
-                document.addEventListener('temaCambiado', (e) => callback(e.detail.tema));
-            }
-
-            usarPreferenciaSistema() {
-                localStorage.removeItem('tema');
-                const preferenciaSistema = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-                    ? 'oscuro'
-                    : 'claro';
-                this.aplicarTema(preferenciaSistema);
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            window.gestorTema = new GestorTema();
-        });
-    </script>
+    <script src="public/js/gestor-tema.js?v=1.0"></script>
+    <script src="public/js/gestor-registro.js?v=1.0"></script>
+    <script src="public/js/proceso.js?v=1.0"></script>
+    <script src="public/js/gestor-memoria.js?v=1.0"></script>
+    <script src="public/js/planificador.js?v=1.0"></script>
+    <script src="public/js/simulador.js?v=1.0"></script>
+    <script src="public/js/main.js?v=1.0"></script>
 </body>
 
 </html>
