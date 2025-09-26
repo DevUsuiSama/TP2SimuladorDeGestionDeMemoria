@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Gestión de Memoria y Procesos</title>
+    <link rel="stylesheet" href="public/css/styles.css">
+    <link rel="shortcut icon" href="public/icon/favicon.ico" type="image/x-icon">
+</head>
+
+<body data-tema="claro">
+    <div class="contenedor-principal">
+
+        <header class="encabezado">
+            <div class="encabezado__superior">
+                <h1 class="encabezado__titulo">Simulador de Gestión de Memoria y Procesos</h1>
+                <button class="boton-tema" id="botonTema">
+                    <span class="boton-tema__icono">🌙</span>
+                    <span class="boton-tema__texto">Modo Oscuro</span>
+                </button>
+            </div>
+            <div class="encabezado__informacion">
+                <span class="encabezado__subtitulo">Sistemas Operativos 2025 - Universidad de la Cuenca del Plata</span>
+                <span class="encabezado__grupo">Grupo: José Fernando Usui, Mariano Acosta y Santino Calamari</span>
+            </div>
+        </header>
+
+        <!-- Panel de Configuración del Sistema -->
+        <section class="panel panel--configuracion">
+            <h2 class="panel__titulo">⚙️ Configuración del Sistema</h2>
+            <div class="panel__contenido">
+                <div class="configuracion__grid">
+                    <div class="configuracion__grupo">
+                        <label class="configuracion__etiqueta">Tamaño de Memoria Total (KB)</label>
+                        <input type="number" class="configuracion__entrada" id="memoriaTotal" value="1024" min="256"
+                            max="8192">
+                    </div>
+
+                    <div class="configuracion__grupo">
+                        <label class="configuracion__etiqueta">Algoritmo de Asignación</label>
+                        <select class="configuracion__seleccion" id="algoritmoAsignacion">
+                            <option value="firstFit">First Fit</option>
+                            <option value="bestFit">Best Fit</option>
+                            <option value="worstFit">Worst Fit</option>
+                        </select>
+                    </div>
+
+                    <div class="configuracion__grupo">
+                        <label class="configuracion__etiqueta">Velocidad de Simulación</label>
+                        <input type="range" class="configuracion__rango" id="velocidadSimulacion" min="1" max="10"
+                            value="5">
+                        <span class="configuracion__valor" id="valorVelocidad">5</span>
+                    </div>
+
+                    <div class="configuracion__grupo">
+                        <label class="configuracion__etiqueta">Modo de Gestión de Memoria</label>
+                        <select class="configuracion__seleccion" id="modoGestion">
+                            <option value="paginacion">Paginación</option>
+                            <option value="compactacion">Compactación</option>
+                            <option value="segmentacion">Segmentación</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="configuracion__acciones">
+                    <button class="boton boton--primario" id="iniciarSistema">Iniciar Sistema</button>
+                    <button class="boton boton--secundario" id="pausarSistema">Pausar Simulación</button>
+                    <button class="boton boton--terciario" id="reiniciarSistema">Reiniciar Todo</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Panel de Algoritmos de Asignación -->
+        <section class="panel panel--algoritmos">
+            <h2 class="panel__titulo">📊 Algoritmos de Asignación de Memoria</h2>
+            <div class="panel__contenido">
+                <div class="algoritmos__comparativa">
+                    <div class="algoritmo-card">
+                        <h3 class="algoritmo-card__titulo">First Fit</h3>
+                        <p class="algoritmo-card__descripcion">Asigna el primer bloque de memoria suficiente encontrado
+                        </p>
+                        <div class="algoritmo-card__metricas">
+                            <span class="metrica">Eficiencia: Alta</span>
+                            <span class="metrica">Fragmentación: Externa (inicio)</span>
+                        </div>
+                    </div>
+
+                    <div class="algoritmo-card">
+                        <h3 class="algoritmo-card__titulo">Best Fit</h3>
+                        <p class="algoritmo-card__descripcion">Busca el bloque más ajustado al tamaño requerido</p>
+                        <div class="algoritmo-card__metricas">
+                            <span class="metrica">Eficiencia: Media</span>
+                            <span class="metrica">Fragmentación: Externa (pequeña)</span>
+                        </div>
+                    </div>
+
+                    <div class="algoritmo-card">
+                        <h3 class="algoritmo-card__titulo">Worst Fit</h3>
+                        <p class="algoritmo-card__descripcion">Asigna el bloque más grande disponible</p>
+                        <div class="algoritmo-card__metricas">
+                            <span class="metrica">Eficiencia: Baja</span>
+                            <span class="metrica">Fragmentación: Interna</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Panel de Estado de la Memoria -->
+        <section class="panel panel--memoria">
+            <h2 class="panel__titulo">💾 Estado de la Memoria</h2>
+            <div class="panel__contenido">
+                <div class="memoria__estadisticas">
+                    <div class="estadistica">
+                        <span class="estadistica__valor" id="memoriaTotalValor">1024 KB</span>
+                        <span class="estadistica__etiqueta">Memoria Total</span>
+                    </div>
+                    <div class="estadistica">
+                        <span class="estadistica__valor" id="memoriaLibreValor">1024 KB</span>
+                        <span class="estadistica__etiqueta">Memoria Libre</span>
+                    </div>
+                    <div class="estadistica">
+                        <span class="estadistica__valor" id="memoriaUsadaValor">0 KB</span>
+                        <span class="estadistica__etiqueta">Memoria Usada</span>
+                    </div>
+                    <div class="estadistica">
+                        <span class="estadistica__valor" id="fragmentacionValor">0%</span>
+                        <span class="estadistica__etiqueta">Fragmentación</span>
+                    </div>
+                </div>
+
+                <div class="memoria__visualizacion">
+                    <div class="memoria__leyenda">
+                        <div class="leyenda__item">
+                            <span class="leyenda__color leyenda__color--libre"></span>
+                            <span class="leyenda__texto">Memoria Libre</span>
+                        </div>
+                        <div class="leyenda__item">
+                            <span class="leyenda__color leyenda__color--ocupado"></span>
+                            <span class="leyenda__texto">Proceso Ocupado</span>
+                        </div>
+                        <div class="leyenda__item">
+                            <span class="leyenda__color leyenda__color--fragmentacion"></span>
+                            <span class="leyenda__texto">Fragmentación</span>
+                        </div>
+                    </div>
+                    <div class="memoria__mapa" id="mapaMemoria">
+                        <!-- Bloques de memoria se generarán aquí -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Panel de Gestión de Procesos -->
+        <section class="panel panel--procesos">
+            <h2 class="panel__titulo">🔄 Gestión de Procesos</h2>
+            <div class="panel__contenido">
+                <div class="procesos__controles">
+                    <div class="procesos__formulario">
+                        <div class="formulario__grupo">
+                            <label class="formulario__etiqueta">Tamaño del Proceso (KB)</label>
+                            <input type="number" class="formulario__entrada" id="tamanoProceso" value="128" min="16"
+                                max="512">
+                        </div>
+
+                        <div class="formulario__grupo">
+                            <label class="formulario__etiqueta">Duración (ciclos)</label>
+                            <input type="number" class="formulario__entrada" id="duracionProceso" value="5" min="1"
+                                max="20">
+                        </div>
+
+                        <div class="formulario__grupo">
+                            <label class="formulario__etiqueta">Prioridad</label>
+                            <select class="formulario__seleccion" id="prioridadProceso">
+                                <option value="baja">Baja</option>
+                                <option value="media" selected>Media</option>
+                                <option value="alta">Alta</option>
+                            </select>
+                        </div>
+
+                        <button class="boton boton--primario" id="agregarProceso">Agregar Proceso</button>
+                    </div>
+
+                    <div class="procesos__automaticos">
+                        <button class="boton boton--secundario" id="generarAutomatico">Generar Procesos
+                            Automáticos</button>
+                        <div class="procesos__config-auto">
+                            <label class="configuracion__etiqueta">Frecuencia (segundos)</label>
+                            <input type="number" class="configuracion__entrada" id="frecuenciaAuto" value="3" min="1"
+                                max="10">
+                        </div>
+
+                        <div class="procesos__tabla-contenedor">
+                            <table class="tabla-procesos">
+                                <thead class="tabla-procesos__cabecera">
+                                    <tr>
+                                        <th>PID</th>
+                                        <th>Tamaño (KB)</th>
+                                        <th>Estado</th>
+                                        <th>Dirección Base</th>
+                                        <th>Duración</th>
+                                        <th>Prioridad</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="tabla-procesos__cuerpo" id="cuerpoTablaProcesos">
+                                    <!-- Filas de procesos se generarán aquí -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Panel de Métricas de Desempeño -->
+        <section class="panel panel--metricas">
+            <h2 class="panel__titulo">📈 Métricas de Desempeño</h2>
+            <div class="panel__contenido">
+                <div class="metricas__grid">
+                    <div class="metrica-card">
+                        <h3 class="metrica-card__titulo">Tiempo de Espera Promedio</h3>
+                        <span class="metrica-card__valor" id="tiempoEsperaPromedio">0 ciclos</span>
+                        <div class="metrica-card__barra">
+                            <div class="barra-progreso">
+                                <div class="barra-progreso__relleno" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metrica-card">
+                        <h3 class="metrica-card__titulo">Uso de Memoria</h3>
+                        <span class="metrica-card__valor" id="usoMemoria">0%</span>
+                        <div class="barra-progreso">
+                            <div class="barra-progreso__relleno" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="metrica-card">
+                        <h3 class="metrica-card__titulo">Procesos Completados</h3>
+                        <span class="metrica-card__valor" id="procesosCompletados">0</span>
+                        <div class="barra-progreso">
+                            <div class="barra-progreso__relleno" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="metrica-card">
+                        <h3 class="metrica-card__titulo">Tasa de Fragmentación</h3>
+                        <span class="metrica-card__valor" id="tasaFragmentacion">0%</span>
+                        <div class="barra-progreso">
+                            <div class="barra-progreso__relleno" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Panel de Registro del Sistema -->
+        <section class="panel panel--registro">
+            <h2 class="panel__titulo">📋 Registro del Sistema</h2>
+            <div class="panel__contenido">
+                <div class="registro__controles">
+                    <button class="boton boton--pequeno" id="limpiarRegistro">Limpiar Registro</button>
+                    <button class="boton boton--pequeno" id="exportarRegistro">Exportar Log</button>
+                </div>
+                <div class="registro__contenido" id="contenidoRegistro">
+                    <div class="registro__entrada">
+                        <span class="registro__tiempo">[00:00:00]</span>
+                        <span class="registro__nivel registro__nivel--info">INFO</span>
+                        <span class="registro__mensaje">Sistema inicializado. Memoria lista para asignar
+                            procesos.</span>
+                    </div>
+                    <div class="registro__entrada">
+                        <span class="registro__tiempo">[00:00:00]</span>
+                        <span class="registro__nivel registro__nivel--info">INFO</span>
+                        <span class="registro__mensaje">Algoritmo First Fit seleccionado para la asignación de
+                            memoria.</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        class GestorTema {
+            constructor() {
+                this.temaActual = localStorage.getItem('tema') || 'claro';
+                this.botonTema = document.getElementById('botonTema');
+                this.iconoTema = this.botonTema?.querySelector('.boton-tema__icono');
+                this.textoTema = this.botonTema?.querySelector('.boton-tema__texto');
+
+                this.inicializar();
+            }
+
+            inicializar() {
+                this.aplicarTema(this.temaActual);
+                this.configurarEventos();
+            }
+
+            configurarEventos() {
+                if (this.botonTema) {
+                    this.botonTema.addEventListener('click', () => this.alternarTema());
+                }
+
+                if (window.matchMedia) {
+                    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+                    mediaQuery.addEventListener('change', (e) => {
+                        if (!localStorage.getItem('tema')) {
+                            this.aplicarTema(e.matches ? 'oscuro' : 'claro');
+                        }
+                    });
+                }
+            }
+
+            alternarTema() {
+                const nuevoTema = this.temaActual === 'claro' ? 'oscuro' : 'claro';
+                this.aplicarTema(nuevoTema);
+                this.guardarPreferencia(nuevoTema);
+            }
+
+            aplicarTema(tema) {
+                this.temaActual = tema;
+                document.body.setAttribute('data-tema', tema);
+                this.actualizarInterfaz();
+                this.dispatchEventoTemaCambiado();
+            }
+
+            actualizarInterfaz() {
+                if (this.iconoTema && this.textoTema) {
+                    if (this.temaActual === 'oscuro') {
+                        this.iconoTema.textContent = '☀️';
+                        this.textoTema.textContent = 'Modo Claro';
+                    } else {
+                        this.iconoTema.textContent = '🌙';
+                        this.textoTema.textContent = 'Modo Oscuro';
+                    }
+                }
+            }
+
+            guardarPreferencia(tema) {
+                localStorage.setItem('tema', tema);
+            }
+
+            dispatchEventoTemaCambiado() {
+                const evento = new CustomEvent('temaCambiado', {
+                    detail: { tema: this.temaActual }
+                });
+                document.dispatchEvent(evento);
+            }
+
+            obtenerTemaActual() {
+                return this.temaActual;
+            }
+
+            suscribir(callback) {
+                document.addEventListener('temaCambiado', (e) => callback(e.detail.tema));
+            }
+
+            usarPreferenciaSistema() {
+                localStorage.removeItem('tema');
+                const preferenciaSistema = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'oscuro'
+                    : 'claro';
+                this.aplicarTema(preferenciaSistema);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.gestorTema = new GestorTema();
+        });
+    </script>
+</body>
+
+</html>
