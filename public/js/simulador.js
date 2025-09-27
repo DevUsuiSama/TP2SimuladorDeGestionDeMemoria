@@ -179,16 +179,43 @@ class Simulador {
     }
 
     generarProcesoAutomatico() {
-        const tamaño = Math.floor(Math.random() * 256) + 16;
-        const duración = Math.floor(Math.random() * 15) + 1;
+        const cantidad = 10;
+        const minTamaño = 16, maxTamaño = 256;
+        const minDuracion = 1, maxDuracion = 15;
         const prioridades = ['baja', 'media', 'alta'];
-        const prioridad = prioridades[Math.floor(Math.random() * 3)];
+        const pesos = [0.2, 0.6, 0.2]; // probabilidad ponderada
 
-        this.contadorProcesos++;
-        const proceso = new Proceso(this.contadorProcesos, tamaño, duración, prioridad);
-        this.planificador.agregarProceso(proceso);
+        const procesosCreados = [];
 
-        this.agregarRegistro(`Proceso automático PID-${proceso.pid} creado (${tamaño}KB)`, 'info');
+        for (let n = 0; n < cantidad; n++) {
+            const tamaño = Math.floor(Math.random() * (maxTamaño - minTamaño + 1)) + minTamaño;
+            const duración = Math.floor(Math.random() * (maxDuracion - minDuracion + 1)) + minDuracion;
+
+            // prioridad ponderada
+            const r = Math.random();
+            let acumulado = 0, prioridad = 'media';
+            for (let i = 0; i < prioridades.length; i++) {
+                acumulado += pesos[i];
+                if (r <= acumulado) {
+                    prioridad = prioridades[i];
+                    break;
+                }
+            }
+
+            this.contadorProcesos++;
+            const proceso = new Proceso(this.contadorProcesos, tamaño, duración, prioridad);
+
+            this.planificador.agregarProceso(proceso);
+
+            this.agregarRegistro(
+                `Proceso automático PID-${proceso.pid} creado | Tamaño: ${tamaño}KB | Duración: ${duración} ciclos | Prioridad: ${prioridad}`,
+                'info'
+            );
+
+            procesosCreados.push(proceso);
+        }
+
+        return procesosCreados;
     }
 
     actualizarInterfaz() {
@@ -215,29 +242,41 @@ class Simulador {
 
     actualizarEstadisticasMemoria() {
         const estadisticas = this.gestorMemoria.obtenerEstadisticasMemoria();
-        
+
         this.elementos.memoriaTotalValor.textContent = `${this.gestorMemoria.tamañoTotal} KB`;
         this.elementos.memoriaLibreValor.textContent = `${estadisticas.memoriaLibre} KB`;
         this.elementos.memoriaUsadaValor.textContent = `${estadisticas.memoriaUsada} KB`;
-        this.elementos.fragmentacionValor.textContent = `${estadisticas.fragmentacion.toFixed(1)}%`;
+
+        // Corregir esta línea - fragmentacion ahora es un objeto
+        this.elementos.fragmentacionValor.textContent = `${estadisticas.fragmentacion.porcentajeTotal.toFixed(1)}%`;
     }
 
     actualizarMapaMemoria() {
         this.elementos.mapaMemoria.innerHTML = '';
         const anchoTotal = this.elementos.mapaMemoria.clientWidth;
 
-        this.gestorMemoria.bloques.forEach(bloque => {
-            const anchoBloque = (this.tamañoBloque(bloque) / this.gestorMemoria.tamañoTotal) * anchoTotal;
+        const mapa = this.gestorMemoria.obtenerMapaMemoria();
+
+        mapa.forEach(bloque => {
+            const anchoBloque = (bloque.tamaño / this.gestorMemoria.tamañoTotal) * anchoTotal;
             const bloqueElemento = document.createElement('div');
-            bloqueElemento.className = `bloque-memoria bloque-memoria--${bloque.libre ? 'libre' : 'ocupado'}`;
+
+            // Usar la nueva propiedad 'fragmentado' para la clase CSS
+            const claseBloque = bloque.fragmentado ? 'fragmentacion' : (bloque.libre ? 'libre' : 'ocupado');
+            bloqueElemento.className = `bloque-memoria bloque-memoria--${claseBloque}`;
+
             bloqueElemento.style.width = `${Math.max(anchoBloque, 4)}px`;
-            
-            const infoBloque = `Bloque: ${bloque.inicio}-${bloque.fin} (${this.tamañoBloque(bloque)}KB)`;
-            bloqueElemento.title = bloque.libre ? infoBloque : `${infoBloque} - PID: ${bloque.proceso.pid}`;
+
+            const infoBloque = `Bloque: ${bloque.inicio}-${bloque.fin} (${bloque.tamaño}KB)`;
+            bloqueElemento.title = bloque.libre ?
+                `${infoBloque} ${bloque.fragmentado ? '[FRAGMENTADO]' : ''}` :
+                `${infoBloque} - PID: ${bloque.proceso.pid}`;
 
             if (!bloque.libre) {
                 bloqueElemento.textContent = `P${bloque.proceso.pid}`;
                 bloqueElemento.title += ` - Estado: ${bloque.proceso.estado}`;
+            } else if (bloque.fragmentado) {
+                bloqueElemento.textContent = 'F';
             }
 
             this.elementos.mapaMemoria.appendChild(bloqueElemento);
@@ -258,7 +297,7 @@ class Simulador {
         todosProcesos.forEach(proceso => {
             const fila = document.createElement('tr');
             const estadisticas = proceso.obtenerEstadisticas();
-            
+
             fila.innerHTML = `
                 <td>${proceso.pid}</td>
                 <td>${proceso.tamaño} KB</td>
@@ -270,9 +309,9 @@ class Simulador {
                 <td>${estadisticas.vecesBloqueado}</td>
                 <td style="display: grid;">
                     <button class="boton boton--pequeno" onclick="simulador.terminarProceso(${proceso.pid})">Terminar</button>
-                    ${proceso.estado === 'bloqueado' ? 
-                        `<button class="boton boton--pequeno" onclick="simulador.desbloquearProceso(${proceso.pid})">Desbloquear</button>` : 
-                        ''}
+                    ${proceso.estado === 'bloqueado' ?
+                    `<button class="boton boton--pequeno" onclick="simulador.desbloquearProceso(${proceso.pid})">Desbloquear</button>` :
+                    ''}
                 </td>
             `;
             this.elementos.cuerpoTablaProcesos.appendChild(fila);
@@ -283,10 +322,9 @@ class Simulador {
         const tiempoEspera = this.planificador.obtenerTiempoEsperaPromedio();
         const usoMemoria = (this.gestorMemoria.obtenerMemoriaUsada() / this.gestorMemoria.tamañoTotal) * 100;
         const procesosCompletados = this.planificador.procesosCompletados;
-        const fragmentacion = this.gestorMemoria.calcularFragmentacion();
-        
-        const metricasAvanzadas = this.planificador.obtenerMetricasAvanzadas();
-        const estadisticasColas = this.planificador.obtenerEstadisticasColas();
+
+        // Corregir esta línea - obtener el porcentaje total del objeto
+        const fragmentacion = this.gestorMemoria.calcularFragmentacion().porcentajeTotal;
 
         this.elementos.tiempoEsperaPromedio.textContent = `${tiempoEspera.toFixed(1)} ciclos`;
         this.elementos.usoMemoria.textContent = `${usoMemoria.toFixed(1)}%`;
@@ -294,7 +332,9 @@ class Simulador {
         this.elementos.tasaFragmentacion.textContent = `${fragmentacion.toFixed(1)}%`;
 
         this.actualizarBarrasProgreso(tiempoEspera, usoMemoria, procesosCompletados, fragmentacion);
-        
+
+        const metricasAvanzadas = this.planificador.obtenerMetricasAvanzadas();
+        const estadisticasColas = this.planificador.obtenerEstadisticasColas();
         this.actualizarMetricasAvanzadas(metricasAvanzadas, estadisticasColas);
     }
 
@@ -311,7 +351,7 @@ class Simulador {
     actualizarMetricasAvanzadas(metricas, colas) {
         const metricasElement = document.getElementById('metricasAvanzadas');
         if (!metricasElement) return;
-        
+
         metricasElement.innerHTML = `
             <div class="metrica-avanzada">
                 <span>Tiempo Retorno: ${metricas.tiempoRetornoPromedio.toFixed(1)}ms</span>
@@ -372,7 +412,7 @@ class Simulador {
 
     obtenerEstadisticasCompletas() {
         if (!this.gestorMemoria) return null;
-        
+
         return {
             memoria: this.gestorMemoria.obtenerEstadisticasMemoria(),
             planificacion: this.planificador.obtenerMetricasAvanzadas(),

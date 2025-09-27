@@ -5,6 +5,12 @@ class GestorMemoria {
         this.procesos = new Map();
         this.procesosBloqueados = new Map();
         this.ultimoPID = 0;
+        this.estadisticasFragmentacion = {
+            total: 0,
+            externa: 0,
+            interna: 0,
+            historial: []
+        };
     }
 
     asignarMemoriaFirstFit(tamaño) {
@@ -55,6 +61,8 @@ class GestorMemoria {
 
     dividirBloque(indice, tamaño) {
         const bloqueOriginal = this.bloques[indice];
+        const tamañoOriginal = this.tamañoBloque(bloqueOriginal);
+        
         const nuevoBloque = {
             inicio: bloqueOriginal.inicio,
             fin: bloqueOriginal.inicio + tamaño - 1,
@@ -62,7 +70,7 @@ class GestorMemoria {
             proceso: null
         };
 
-        if (this.tamañoBloque(bloqueOriginal) > tamaño) {
+        if (tamañoOriginal > tamaño) {
             const bloqueRestante = {
                 inicio: bloqueOriginal.inicio + tamaño,
                 fin: bloqueOriginal.fin,
@@ -70,11 +78,19 @@ class GestorMemoria {
                 proceso: null
             };
             this.bloques.splice(indice, 1, nuevoBloque, bloqueRestante);
+            
+            // Calcular fragmentación interna del bloque asignado
+            const fragmentacionInterna = tamañoOriginal - tamaño;
+            if (fragmentacionInterna > 0) {
+                this.estadisticasFragmentacion.interna += fragmentacionInterna;
+            }
         } else {
             bloqueOriginal.libre = false;
+            this.actualizarEstadisticasFragmentacion();
             return bloqueOriginal;
         }
 
+        this.actualizarEstadisticasFragmentacion();
         return nuevoBloque;
     }
 
@@ -91,6 +107,7 @@ class GestorMemoria {
                 this.procesosBloqueados.delete(pid);
                 
                 this.compactarMemoria();
+                this.actualizarEstadisticasFragmentacion();
                 return true;
             }
         }
@@ -138,6 +155,7 @@ class GestorMemoria {
         }
 
         this.bloques = bloquesCompactados;
+        this.actualizarEstadisticasFragmentacion();
     }
 
     tamañoBloque(bloque) {
@@ -145,14 +163,45 @@ class GestorMemoria {
     }
 
     calcularFragmentacion() {
-        const totalLibre = this.bloques
-            .filter(b => b.libre)
-            .reduce((sum, b) => sum + this.tamañoBloque(b), 0);
-        
+        const totalLibre = this.obtenerMemoriaLibre();
         const bloquesLibres = this.bloques.filter(b => b.libre).length;
+        
+        // Fragmentación externa: memoria libre distribuida en bloques separados
         const fragmentacionExterna = bloquesLibres > 1 ? totalLibre : 0;
         
-        return (fragmentacionExterna / this.tamañoTotal) * 100;
+        // Fragmentación total (externa + interna)
+        const fragmentacionTotal = this.estadisticasFragmentacion.externa + 
+                                 this.estadisticasFragmentacion.interna;
+        
+        return {
+            porcentajeExterna: (fragmentacionExterna / this.tamañoTotal) * 100,
+            porcentajeInterna: (this.estadisticasFragmentacion.interna / this.tamañoTotal) * 100,
+            porcentajeTotal: (fragmentacionTotal / this.tamañoTotal) * 100,
+            totalKB: fragmentacionTotal,
+            externaKB: fragmentacionExterna,
+            internaKB: this.estadisticasFragmentacion.interna
+        };
+    }
+
+    actualizarEstadisticasFragmentacion() {
+        const totalLibre = this.obtenerMemoriaLibre();
+        const bloquesLibres = this.bloques.filter(b => b.libre).length;
+        
+        this.estadisticasFragmentacion.externa = bloquesLibres > 1 ? totalLibre : 0;
+        this.estadisticasFragmentacion.total = this.estadisticasFragmentacion.externa + 
+                                             this.estadisticasFragmentacion.interna;
+        
+        // Guardar en historial (máximo 100 registros)
+        this.estadisticasFragmentacion.historial.push({
+            timestamp: Date.now(),
+            externa: this.estadisticasFragmentacion.externa,
+            interna: this.estadisticasFragmentacion.interna,
+            total: this.estadisticasFragmentacion.total
+        });
+        
+        if (this.estadisticasFragmentacion.historial.length > 100) {
+            this.estadisticasFragmentacion.historial.shift();
+        }
     }
 
     obtenerMemoriaLibre() {
@@ -186,22 +235,60 @@ class GestorMemoria {
             bloquesLibres: this.bloques.filter(b => b.libre).length,
             bloquesOcupados: this.bloques.filter(b => !b.libre).length,
             procesosActivos: this.procesos.size,
-            procesosBloqueados: this.procesosBloqueados.size
+            procesosBloqueados: this.procesosBloqueados.size,
+            detallesFragmentacion: {
+                total: `${fragmentacion.porcentajeTotal.toFixed(1)}% (${fragmentacion.totalKB} KB)`,
+                externa: `${fragmentacion.porcentajeExterna.toFixed(1)}% (${fragmentacion.externaKB} KB)`,
+                interna: `${fragmentacion.porcentajeInterna.toFixed(1)}% (${fragmentacion.internaKB} KB)`
+            }
         };
     }
 
     obtenerMapaMemoria() {
+        const fragmentacion = this.calcularFragmentacion();
+        
         return this.bloques.map(bloque => ({
             inicio: bloque.inicio,
             fin: bloque.fin,
             tamaño: this.tamañoBloque(bloque),
             libre: bloque.libre,
+            fragmentado: bloque.libre && this.tamañoBloque(bloque) < 10, // Pequeños bloques libres
             proceso: bloque.proceso ? {
                 pid: bloque.proceso.pid,
                 tamaño: bloque.proceso.tamaño,
                 estado: bloque.proceso.estado
-            } : null
+            } : null,
+            infoFragmentacion: {
+                esFragmento: bloque.libre && this.tamañoBloque(bloque) < (this.tamañoTotal * 0.05), // < 5% del total
+                contribuyeExterna: bloque.libre && fragmentacion.externaKB > 0
+            }
         }));
+    }
+
+    obtenerResumenFragmentacion() {
+        const fragmentacion = this.calcularFragmentacion();
+        const bloquesPequeños = this.bloques.filter(b => 
+            b.libre && this.tamañoBloque(b) < (this.tamañoTotal * 0.05)
+        ).length;
+        
+        return {
+            resumen: `Fragmentación: Total ${fragmentacion.porcentajeTotal.toFixed(1)}% (Externa: ${fragmentacion.porcentajeExterna.toFixed(1)}%, Interna: ${fragmentacion.porcentajeInterna.toFixed(1)}%)`,
+            alerta: fragmentacion.porcentajeTotal > 30 ? 'ALTA' : 
+                   fragmentacion.porcentajeTotal > 15 ? 'MEDIA' : 'BAJA',
+            bloquesPequeños,
+            recomendacion: this.obtenerRecomendacionFragmentacion(fragmentacion)
+        };
+    }
+
+    obtenerRecomendacionFragmentacion(fragmentacion) {
+        if (fragmentacion.porcentajeExterna > 20) {
+            return 'Considerar compactación de memoria';
+        } else if (fragmentacion.porcentajeInterna > 15) {
+            return 'Revisar estrategia de asignación (Best Fit recomendado)';
+        } else if (fragmentacion.porcentajeTotal > 25) {
+            return 'Evaluar aumento de memoria total';
+        }
+        return 'Estado óptimo';
     }
 
     verificarIntegridad() {
@@ -245,5 +332,11 @@ class GestorMemoria {
         this.bloques = [{inicio: 0, fin: this.tamañoTotal - 1, libre: true, proceso: null}];
         this.procesos.clear();
         this.procesosBloqueados.clear();
+        this.estadisticasFragmentacion = {
+            total: 0,
+            externa: 0,
+            interna: 0,
+            historial: []
+        };
     }
 }
