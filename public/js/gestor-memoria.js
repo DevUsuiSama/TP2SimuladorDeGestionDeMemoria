@@ -3,6 +3,7 @@ class GestorMemoria {
         this.tamañoTotal = tamañoTotal;
         this.bloques = [{inicio: 0, fin: tamañoTotal - 1, libre: true, proceso: null}];
         this.procesos = new Map();
+        this.procesosBloqueados = new Map();
         this.ultimoPID = 0;
     }
 
@@ -78,19 +79,44 @@ class GestorMemoria {
     }
 
     liberarMemoria(pid) {
-        const proceso = this.procesos.get(pid);
+        const proceso = this.procesos.get(pid) || this.procesosBloqueados.get(pid);
         if (!proceso) return false;
 
         for (let i = 0; i < this.bloques.length; i++) {
             if (this.bloques[i].proceso === proceso) {
                 this.bloques[i].libre = true;
                 this.bloques[i].proceso = null;
+                
                 this.procesos.delete(pid);
+                this.procesosBloqueados.delete(pid);
+                
                 this.compactarMemoria();
                 return true;
             }
         }
         return false;
+    }
+
+    bloquearProceso(pid) {
+        const proceso = this.procesos.get(pid);
+        if (!proceso) return false;
+
+        this.procesos.delete(pid);
+        this.procesosBloqueados.set(pid, proceso);
+        
+        proceso.actualizarEstado('bloqueado');
+        return true;
+    }
+
+    desbloquearProceso(pid) {
+        const proceso = this.procesosBloqueados.get(pid);
+        if (!proceso) return false;
+
+        this.procesosBloqueados.delete(pid);
+        this.procesos.set(pid, proceso);
+        
+        proceso.actualizarEstado('listo');
+        return true;
     }
 
     compactarMemoria() {
@@ -137,5 +163,87 @@ class GestorMemoria {
 
     obtenerMemoriaUsada() {
         return this.tamañoTotal - this.obtenerMemoriaLibre();
+    }
+
+    obtenerProcesosActivos() {
+        return {
+            ejecutando: Array.from(this.procesos.values()),
+            bloqueados: Array.from(this.procesosBloqueados.values()),
+            total: this.procesos.size + this.procesosBloqueados.size
+        };
+    }
+
+    obtenerEstadisticasMemoria() {
+        const memoriaLibre = this.obtenerMemoriaLibre();
+        const memoriaUsada = this.obtenerMemoriaUsada();
+        const fragmentacion = this.calcularFragmentacion();
+        
+        return {
+            memoriaLibre,
+            memoriaUsada,
+            fragmentacion,
+            bloquesTotales: this.bloques.length,
+            bloquesLibres: this.bloques.filter(b => b.libre).length,
+            bloquesOcupados: this.bloques.filter(b => !b.libre).length,
+            procesosActivos: this.procesos.size,
+            procesosBloqueados: this.procesosBloqueados.size
+        };
+    }
+
+    obtenerMapaMemoria() {
+        return this.bloques.map(bloque => ({
+            inicio: bloque.inicio,
+            fin: bloque.fin,
+            tamaño: this.tamañoBloque(bloque),
+            libre: bloque.libre,
+            proceso: bloque.proceso ? {
+                pid: bloque.proceso.pid,
+                tamaño: bloque.proceso.tamaño,
+                estado: bloque.proceso.estado
+            } : null
+        }));
+    }
+
+    verificarIntegridad() {
+        let direccionActual = 0;
+        
+        for (const bloque of this.bloques) {
+            if (bloque.inicio !== direccionActual) {
+                console.error('Error de integridad: hueco en la memoria', {
+                    esperado: direccionActual,
+                    encontrado: bloque.inicio
+                });
+                return false;
+            }
+            
+            if (bloque.fin < bloque.inicio) {
+                console.error('Error de integridad: bloque inválido', bloque);
+                return false;
+            }
+            
+            direccionActual = bloque.fin + 1;
+        }
+        
+        if (direccionActual > this.tamañoTotal) {
+            console.error('Error de integridad: memoria excedida', {
+                total: this.tamañoTotal,
+                utilizado: direccionActual
+            });
+            return false;
+        }
+        
+        return true;
+    }
+
+    liberarTodosLosProcesos() {
+        const pids = Array.from(this.procesos.keys());
+        const pidsBloqueados = Array.from(this.procesosBloqueados.keys());
+        
+        pids.forEach(pid => this.liberarMemoria(pid));
+        pidsBloqueados.forEach(pid => this.liberarMemoria(pid));
+        
+        this.bloques = [{inicio: 0, fin: this.tamañoTotal - 1, libre: true, proceso: null}];
+        this.procesos.clear();
+        this.procesosBloqueados.clear();
     }
 }

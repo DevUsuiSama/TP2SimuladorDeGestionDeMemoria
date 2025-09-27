@@ -40,7 +40,10 @@ class Simulador {
             tasaFragmentacion: document.getElementById('tasaFragmentacion'),
             contenidoRegistro: document.getElementById('contenidoRegistro'),
             limpiarRegistro: document.getElementById('limpiarRegistro'),
-            exportarRegistro: document.getElementById('exportarRegistro')
+            exportarRegistro: document.getElementById('exportarRegistro'),
+            exportarRango: document.getElementById('exportarRango'),
+            filtroDesde: document.getElementById('filtroDesde'),
+            filtroHasta: document.getElementById('filtroHasta')
         };
     }
 
@@ -52,6 +55,7 @@ class Simulador {
         this.elementos.generarAutomatico.addEventListener('click', () => this.alternarGeneracionAutomatica());
         this.elementos.limpiarRegistro.addEventListener('click', () => this.limpiarRegistro());
         this.elementos.exportarRegistro.addEventListener('click', () => this.exportarRegistro());
+        this.elementos.exportarRango.addEventListener('click', () => this.exportarRegistroPorRango());
 
         this.elementos.velocidadSimulacion.addEventListener('input', (e) => {
             this.velocidad = parseInt(e.target.value);
@@ -89,6 +93,9 @@ class Simulador {
     reiniciarSimulacion() {
         this.pausarSimulacion();
         this.detenerGeneracionAutomatica();
+        if (this.gestorMemoria) {
+            this.gestorMemoria.liberarTodosLosProcesos();
+        }
         this.gestorMemoria = null;
         this.planificador = new Planificador();
         this.contadorProcesos = 0;
@@ -112,7 +119,7 @@ class Simulador {
         while (procesosTerminados.length > 0) {
             const proceso = procesosTerminados.shift();
             this.gestorMemoria.liberarMemoria(proceso.pid);
-            this.agregarRegistro(`Proceso PID-${proceso.pid} terminado`, 'exito');
+            this.agregarRegistro(`Proceso PID-${proceso.pid} terminado (Duración: ${proceso.duración} ciclos)`, 'exito');
         }
     }
 
@@ -127,7 +134,12 @@ class Simulador {
         const prioridad = this.elementos.prioridadProceso.value;
 
         if (tamaño > this.gestorMemoria.tamañoTotal) {
-            this.agregarRegistro('El proceso es más grande que la memoria total', 'error');
+            this.agregarRegistro(`Error: Proceso demasiado grande (${tamaño}KB > ${this.gestorMemoria.tamañoTotal}KB)`, 'error');
+            return;
+        }
+
+        if (tamaño < 1) {
+            this.agregarRegistro('Error: Tamaño de proceso inválido', 'error');
             return;
         }
 
@@ -135,7 +147,7 @@ class Simulador {
         const proceso = new Proceso(this.contadorProcesos, tamaño, duración, prioridad);
         this.planificador.agregarProceso(proceso);
 
-        this.agregarRegistro(`Proceso PID-${proceso.pid} creado (${tamaño}KB)`, 'info');
+        this.agregarRegistro(`Proceso PID-${proceso.pid} creado (${tamaño}KB, ${duración}ciclos, ${prioridad})`, 'info');
         this.actualizarInterfaz();
     }
 
@@ -156,7 +168,7 @@ class Simulador {
         }, frecuencia);
 
         this.elementos.generarAutomatico.textContent = 'Detener Generación';
-        this.agregarRegistro('Generación automática activada', 'info');
+        this.agregarRegistro(`Generación automática activada (${this.elementos.frecuenciaAuto.value}s)`, 'info');
     }
 
     detenerGeneracionAutomatica() {
@@ -176,7 +188,7 @@ class Simulador {
         const proceso = new Proceso(this.contadorProcesos, tamaño, duración, prioridad);
         this.planificador.agregarProceso(proceso);
 
-        this.agregarRegistro(`Proceso automático PID-${proceso.pid} creado`, 'info');
+        this.agregarRegistro(`Proceso automático PID-${proceso.pid} creado (${tamaño}KB)`, 'info');
     }
 
     actualizarInterfaz() {
@@ -202,14 +214,12 @@ class Simulador {
     }
 
     actualizarEstadisticasMemoria() {
-        const memoriaLibre = this.gestorMemoria.obtenerMemoriaLibre();
-        const memoriaUsada = this.gestorMemoria.obtenerMemoriaUsada();
-        const fragmentacion = this.gestorMemoria.calcularFragmentacion();
-
+        const estadisticas = this.gestorMemoria.obtenerEstadisticasMemoria();
+        
         this.elementos.memoriaTotalValor.textContent = `${this.gestorMemoria.tamañoTotal} KB`;
-        this.elementos.memoriaLibreValor.textContent = `${memoriaLibre} KB`;
-        this.elementos.memoriaUsadaValor.textContent = `${memoriaUsada} KB`;
-        this.elementos.fragmentacionValor.textContent = `${fragmentacion.toFixed(1)}%`;
+        this.elementos.memoriaLibreValor.textContent = `${estadisticas.memoriaLibre} KB`;
+        this.elementos.memoriaUsadaValor.textContent = `${estadisticas.memoriaUsada} KB`;
+        this.elementos.fragmentacionValor.textContent = `${estadisticas.fragmentacion.toFixed(1)}%`;
     }
 
     actualizarMapaMemoria() {
@@ -221,10 +231,13 @@ class Simulador {
             const bloqueElemento = document.createElement('div');
             bloqueElemento.className = `bloque-memoria bloque-memoria--${bloque.libre ? 'libre' : 'ocupado'}`;
             bloqueElemento.style.width = `${Math.max(anchoBloque, 4)}px`;
-            bloqueElemento.title = `Bloque: ${bloque.inicio}-${bloque.fin} (${this.tamañoBloque(bloque)}KB)`;
+            
+            const infoBloque = `Bloque: ${bloque.inicio}-${bloque.fin} (${this.tamañoBloque(bloque)}KB)`;
+            bloqueElemento.title = bloque.libre ? infoBloque : `${infoBloque} - PID: ${bloque.proceso.pid}`;
 
             if (!bloque.libre) {
                 bloqueElemento.textContent = `P${bloque.proceso.pid}`;
+                bloqueElemento.title += ` - Estado: ${bloque.proceso.estado}`;
             }
 
             this.elementos.mapaMemoria.appendChild(bloqueElemento);
@@ -234,15 +247,18 @@ class Simulador {
     actualizarTablaProcesos() {
         this.elementos.cuerpoTablaProcesos.innerHTML = '';
 
+        const procesosActivos = this.gestorMemoria.obtenerProcesosActivos();
         const todosProcesos = [
             ...this.planificador.colaNuevos,
-            ...this.planificador.colaListos,
-            ...(this.planificador.procesoEjecutando ? [this.planificador.procesoEjecutando] : []),
+            ...procesosActivos.ejecutando,
+            ...procesosActivos.bloqueados,
             ...this.planificador.procesosTerminados
         ];
 
         todosProcesos.forEach(proceso => {
             const fila = document.createElement('tr');
+            const estadisticas = proceso.obtenerEstadisticas();
+            
             fila.innerHTML = `
                 <td>${proceso.pid}</td>
                 <td>${proceso.tamaño} KB</td>
@@ -250,7 +266,14 @@ class Simulador {
                 <td>${proceso.direcciónBase !== null ? proceso.direcciónBase : '-'}</td>
                 <td>${proceso.duraciónRestante}/${proceso.duración}</td>
                 <td>${proceso.prioridad}</td>
-                <td><button class="boton boton--pequeno" onclick="simulador.terminarProceso(${proceso.pid})">Terminar</button></td>
+                <td>${estadisticas.ciclosEjecutados}</td>
+                <td>${estadisticas.vecesBloqueado}</td>
+                <td style="display: grid;">
+                    <button class="boton boton--pequeno" onclick="simulador.terminarProceso(${proceso.pid})">Terminar</button>
+                    ${proceso.estado === 'bloqueado' ? 
+                        `<button class="boton boton--pequeno" onclick="simulador.desbloquearProceso(${proceso.pid})">Desbloquear</button>` : 
+                        ''}
+                </td>
             `;
             this.elementos.cuerpoTablaProcesos.appendChild(fila);
         });
@@ -261,6 +284,9 @@ class Simulador {
         const usoMemoria = (this.gestorMemoria.obtenerMemoriaUsada() / this.gestorMemoria.tamañoTotal) * 100;
         const procesosCompletados = this.planificador.procesosCompletados;
         const fragmentacion = this.gestorMemoria.calcularFragmentacion();
+        
+        const metricasAvanzadas = this.planificador.obtenerMetricasAvanzadas();
+        const estadisticasColas = this.planificador.obtenerEstadisticasColas();
 
         this.elementos.tiempoEsperaPromedio.textContent = `${tiempoEspera.toFixed(1)} ciclos`;
         this.elementos.usoMemoria.textContent = `${usoMemoria.toFixed(1)}%`;
@@ -268,25 +294,51 @@ class Simulador {
         this.elementos.tasaFragmentacion.textContent = `${fragmentacion.toFixed(1)}%`;
 
         this.actualizarBarrasProgreso(tiempoEspera, usoMemoria, procesosCompletados, fragmentacion);
+        
+        this.actualizarMetricasAvanzadas(metricasAvanzadas, estadisticasColas);
     }
 
     actualizarBarrasProgreso(tiempoEspera, usoMemoria, procesosCompletados, fragmentacion) {
         const barras = document.querySelectorAll('.barra-progreso__relleno');
         if (barras.length >= 4) {
-            barras[0].style.width = `${Math.min(tiempoEspera * 10, 100)}%`;
+            barras[0].style.width = `${Math.min(tiempoEspera * 2, 100)}%`;
             barras[1].style.width = `${usoMemoria}%`;
-            barras[2].style.width = `${Math.min(procesosCompletados * 10, 100)}%`;
+            barras[2].style.width = `${Math.min(procesosCompletados * 5, 100)}%`;
             barras[3].style.width = `${fragmentacion}%`;
         }
     }
 
+    actualizarMetricasAvanzadas(metricas, colas) {
+        const metricasElement = document.getElementById('metricasAvanzadas');
+        if (!metricasElement) return;
+        
+        metricasElement.innerHTML = `
+            <div class="metrica-avanzada">
+                <span>Tiempo Retorno: ${metricas.tiempoRetornoPromedio.toFixed(1)}ms</span>
+                <span>Throughput: ${metricas.throughput.toFixed(2)} proc/s</span>
+                <span>Utilización CPU: ${metricas.utilizacionCPU.toFixed(1)}%</span>
+            </div>
+            <div class="estadisticas-colas">
+                <span>Nuevos: ${colas.nuevos}</span>
+                <span>Listos: ${colas.listos}</span>
+                <span>Bloqueados: ${colas.bloqueados}</span>
+                <span>Ejecutando: ${colas.ejecutando}</span>
+            </div>
+        `;
+    }
+
     terminarProceso(pid) {
         if (this.gestorMemoria.liberarMemoria(pid)) {
-            this.planificador.procesosTerminados = this.planificador.procesosTerminados.filter(p => p.pid !== pid);
-            if (this.planificador.procesoEjecutando && this.planificador.procesoEjecutando.pid === pid) {
-                this.planificador.procesoEjecutando = null;
-            }
+            this.planificador.removerProceso(pid);
             this.agregarRegistro(`Proceso PID-${pid} terminado manualmente`, 'advertencia');
+            this.actualizarInterfaz();
+        }
+    }
+
+    desbloquearProceso(pid) {
+        if (this.gestorMemoria.desbloquearProceso(pid)) {
+            this.planificador.agregarAColaListos(this.gestorMemoria.procesos.get(pid));
+            this.agregarRegistro(`Proceso PID-${pid} desbloqueado manualmente`, 'info');
             this.actualizarInterfaz();
         }
     }
@@ -296,19 +348,15 @@ class Simulador {
     }
 
     limpiarRegistro() {
-        this.elementos.contenidoRegistro.innerHTML = '';
-        this.agregarRegistro('Registro limpiado', 'info');
+        this.gestorRegistro.limpiarRegistro();
     }
 
     exportarRegistro() {
-        const contenido = this.elementos.contenidoRegistro.textContent;
-        const blob = new Blob([contenido], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `log-simulador-${new Date().toISOString().split('T')[0]}.txt`;
-        a.click();
-        URL.revokeObjectURL(url);
+        this.gestorRegistro.exportarTodo();
+    }
+
+    exportarRegistroPorRango() {
+        this.gestorRegistro.exportarPorRango();
     }
 
     tamañoBloque(bloque) {
@@ -320,5 +368,16 @@ class Simulador {
             clearInterval(this.intervalo);
             this.intervalo = setInterval(() => this.ejecutarCiclo(), 1000 / this.velocidad);
         }
+    }
+
+    obtenerEstadisticasCompletas() {
+        if (!this.gestorMemoria) return null;
+        
+        return {
+            memoria: this.gestorMemoria.obtenerEstadisticasMemoria(),
+            planificacion: this.planificador.obtenerMetricasAvanzadas(),
+            colas: this.planificador.obtenerEstadisticasColas(),
+            procesosTotales: this.contadorProcesos
+        };
     }
 }
