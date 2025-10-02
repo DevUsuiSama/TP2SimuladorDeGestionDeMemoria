@@ -393,7 +393,6 @@ body {
     align-items: center;
     justify-content: center;
     font-size: 0.7rem;
-    min-width: 40px;
     cursor: pointer;
     color: white;
     font-weight: 500;
@@ -461,6 +460,7 @@ body {
 
 .procesos__tabla-contenedor {
     height: 400px;
+    width: 77vw;
     overflow-y: auto;
     overflow-x: auto;
     border: 1px solid var(--color-borde);
@@ -564,13 +564,18 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
     animation: shimmer 2s infinite;
 }
 
 @keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
 }
 
 .registro__controles {
@@ -604,7 +609,6 @@ body {
     font-size: 0.8rem;
     color: var(--color-texto);
     font-family: 'Courier New', monospace;
-    min-width: 120px;
 }
 
 .registro__tiempo-input:focus {
@@ -642,7 +646,6 @@ body {
 .registro__tiempo {
     color: var(--color-secundario);
     font-weight: 500;
-    min-width: 80px;
     flex-shrink: 0;
 }
 
@@ -651,7 +654,6 @@ body {
     border-radius: 4px;
     font-size: 0.7rem;
     font-weight: 600;
-    min-width: 50px;
     text-align: center;
     flex-shrink: 0;
 }
@@ -688,7 +690,6 @@ body {
     font-size: 0.75rem;
     font-weight: 600;
     text-align: center;
-    min-width: 90px;
     display: inline-block;
 }
 
@@ -783,12 +784,12 @@ body {
         padding: 16px;
         gap: 20px;
     }
-    
+
     .procesos__controles {
         grid-template-columns: 1fr;
         gap: 20px;
     }
-    
+
     .configuracion__grid {
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     }
@@ -799,63 +800,62 @@ body {
         padding: 12px;
         gap: 16px;
     }
-    
+
     .encabezado__superior {
         flex-direction: column;
         gap: 12px;
         align-items: flex-start;
     }
-    
+
     .encabezado__informacion {
         flex-direction: column;
         gap: 4px;
     }
-    
+
     .configuracion__grid {
         grid-template-columns: 1fr;
     }
-    
+
     .algoritmos__comparativa {
         grid-template-columns: 1fr;
     }
-    
+
     .procesos__controles {
         grid-template-columns: 1fr;
     }
-    
+
     .metricas__grid {
         grid-template-columns: 1fr;
     }
-    
+
     .panel {
         padding: 20px;
     }
-    
+
     .encabezado__titulo {
         font-size: 1.5rem;
     }
-    
+
     .procesos__tabla-contenedor {
         max-height: 300px;
     }
-    
+
     .registro__controles {
         flex-direction: column;
         align-items: stretch;
         gap: 12px;
     }
-    
+
     .registro__filtros {
         justify-content: center;
     }
-    
+
     .configuracion__acciones {
         justify-content: stretch;
     }
-    
+
     .boton {
         flex: 1;
-        min-width: 120px;
     }
 }
 
@@ -864,48 +864,46 @@ body {
         padding: 8px;
         gap: 12px;
     }
-    
+
     .encabezado {
         padding: 20px;
     }
-    
+
     .encabezado__titulo {
         font-size: 1.3rem;
     }
-    
+
     .panel {
         padding: 16px;
     }
-    
+
     .registro__filtros {
         flex-direction: column;
         align-items: stretch;
         gap: 8px;
     }
-    
+
     .procesos__tabla-contenedor {
         max-height: 250px;
     }
-    
+
     .tabla-procesos {
         font-size: 0.75rem;
-        min-width: 600px;
     }
-    
+
     .tabla-procesos th,
     .tabla-procesos td {
         padding: 8px 6px;
     }
-    
+
     .memoria__mapa {
         height: 60px;
     }
-    
+
     .bloque-memoria {
-        min-width: 30px;
         font-size: 0.6rem;
     }
-    
+
     .estadisticas-colas {
         flex-direction: column;
         align-items: center;
@@ -916,15 +914,15 @@ body {
     .encabezado {
         padding: 16px;
     }
-    
+
     .panel {
         padding: 12px;
     }
-    
+
     .configuracion__acciones {
         flex-direction: column;
     }
-    
+
     .boton {
         width: 100%;
     }
@@ -991,8 +989,15 @@ body {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .pulse {
@@ -1000,7 +1005,15 @@ body {
 }
 
 @keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.7; }
-    100% { opacity: 1; }
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+
+    100% {
+        opacity: 1;
+    }
 }
