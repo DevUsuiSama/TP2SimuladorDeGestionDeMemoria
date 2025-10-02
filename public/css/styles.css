@@ -472,7 +472,6 @@ body {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.85rem;
-    min-width: 800px;
 }
 
 .tabla-procesos__cabecera {
